@@ -69,6 +69,7 @@ I did **not** ask AI to write the deduplication logic or the design decisions wh
 ![Git log screenshot](git-log-screenshot.png)
 
 ```
+eac0d36 fix: import FilmNotFoundError from watchlist_service for 404 responses
 7d59695 docs: update pr-response.md with final commit log
 1a970d1 docs: complete pr-response.md with AI usage and stretch features
 dafca6b chore: add seed.py for manual API testing
@@ -86,7 +87,7 @@ bca712b fix: update film retrieval method to use db.session.get in collection an
 fd19061 feat: add watchlist model and endpoints
 ```
 
-> **Git log screenshot:** Embedded above. 15 conventional commits, zero merge commits.
+> **Git log screenshot:** Embedded above. 16 conventional commits, zero merge commits.
 
 ## PR Description
 
