@@ -6,6 +6,8 @@ Business logic for the watchlist feature.
 
 from app import db
 from models import Film, WatchlistEntry
+
+
 class FilmNotFoundError(Exception):
     """Raised when a film_id does not exist in the database."""
     pass
@@ -22,7 +24,7 @@ def add_to_watchlist(user_id, film_id, public=True):
 
     Args:
         user_id (str): UUID of the user.
-        film_id (int): ID of the film. (Note: integer — pre-refactor)
+        film_id (str): UUID of the film.
         public (bool): Whether the entry is publicly visible. Defaults to True.
 
     Returns:
