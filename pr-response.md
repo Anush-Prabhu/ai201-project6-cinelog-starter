@@ -1,5 +1,17 @@
 # PR Response Doc — CineLog Watchlist Feature
 
+## AI Usage
+
+I used AI tools in three specific ways during this project:
+
+1. **Codebase orientation:** I pasted `models.py`, `services/collection_service.py`, and `tests/test_collection.py` and asked for a summary of naming conventions, deduplication patterns, and test structure before touching the watchlist code. This helped me mirror `add_to_collection()` for Comments 2 and 3 instead of inventing a new pattern.
+
+2. **Stress-testing design arguments (Comments 4 and 5):** I asked: *"What counterargument would a careful code reviewer raise against keeping `public=True` as the default for watchlist entries?"* The AI pointed out that watchlists reveal forward-looking intent, which is more sensitive than a collection of past watches. I incorporated that into Comment 4's tradeoff section and added an explicit `public` parameter so callers can opt out per entry.
+
+3. **Debugging the runtime error:** When `GET /films/` returned a 500 (`Flask app is not registered with this SQLAlchemy instance`), I used AI to diagnose the dual-import problem (`python app.py` vs `from app import db`). The fix was moving `db` to a shared `extensions.py` module.
+
+I did **not** ask AI to write the deduplication logic or the design decisions wholesale — those were written after reading the collection service and the reviewer's comments directly.
+
 ## Comment 1 — Rename
 **What I did:** Renamed `save_to_watchlist()` to `add_to_watchlist()` in `services/watchlist_service.py`, matching the `verb_to_noun` convention used by `add_to_collection()` / `remove_from_collection()` / `get_collection()`. Updated the docstring and the call site in `routes/watchlist/watchlist.py` (import and function call).
 
@@ -17,14 +29,14 @@
 - `test_add_to_watchlist_duplicate_raises` — locks in Comment 2's dedup behavior
 - `test_get_watchlist_returns_newest_first` — sort order (Comment 5)
 
-**How I verified:** `python -m pytest tests/ -v` — 8 tests pass (4 collection + 4 watchlist).
+**How I verified:** `python -m pytest tests/ -v` — all watchlist tests pass.
 
 ## Comment 4 — Default visibility
 **My position:** Keep `public=True` as the default for new watchlist entries, but make it an explicit, overridable parameter (`add_to_watchlist(user_id, film_id, public=True)`) instead of only a buried model default.
 
 **Reasoning:** `get_watchlist()` currently returns every entry unfiltered — no code path restricts reads by `public`. So the default has no enforcement effect today. The decision is which value we want sitting in the database when a visibility-aware feature ships later. Defaults are sticky: if we shipped `public=False` now and added discovery later, early entries would be invisible without a backfill. `public=True` costs nothing today and doesn't foreclose a future discovery feature. It is also consistent with `CollectionEntry`, which has no visibility field and is fully exposed via `GET /collection/<user_id>`.
 
-**Tradeoff acknowledged:** A watchlist can expose forward-looking intent (more sensitive than a collection of past watches). I address this by making `public` an explicit parameter so callers can opt out per entry. Before this ships to end users as privacy-respecting, `public` needs to be enforced on read paths — that enforcement is outside the scope of these six comments.
+**Tradeoff acknowledged:** A watchlist can expose forward-looking intent (more sensitive than a collection of past watches). I address this by making `public` an explicit parameter so callers can opt out per entry. `test_add_to_watchlist_respects_public_false` verifies `public=False` persists correctly. Before this ships to end users as privacy-respecting, `public` needs to be enforced on read paths — that enforcement is outside the scope of these six comments.
 
 ## Comment 5 — Sort order
 **My position:** Agreed — implemented date-added descending (newest first) for `get_watchlist()`, replacing alphabetical (`Film.title.asc()`).
@@ -40,13 +52,25 @@
 
 **How I resolved it:** Caught the issue when `pytest` failed with `ImportError: cannot import name 'WatchlistEntry'`. Restored `WatchlistEntry` in `models.py` with `film_id` as `db.String(36)` (UUID), added a `unique_user_film_watchlist` constraint, and updated stale integer references in docstrings, route comments, and the test fixture (`"00000000-0000-0000-0000-000000000000"`).
 
-**How I verified:** `python -m pytest tests/ -v` — all 8 tests pass. `git log --oneline --merges origin/main..HEAD` returns empty (linear history, no merge commits).
+**How I verified no conflict remains:** `python -m pytest tests/ -v` — all tests pass. `git log --oneline --merges origin/main..HEAD` returns empty (linear history, no merge commits).
+
+## Stretch Features
+
+**`remove_from_watchlist()`:** Added `remove_from_watchlist(user_id, film_id)` in `services/watchlist_service.py`, a `DELETE /watchlist/<user_id>/remove` route, and tests (`test_remove_from_watchlist_removes_entry`, `test_remove_from_watchlist_not_on_list_raises`). Mirrors `remove_from_collection()` / `NotInCollectionError` pattern.
+
+**Second edge-case test:** `test_add_to_watchlist_respects_public_false` — verifies callers can override the `public=True` default by passing `public=False`, ensuring the visibility toggle is not just a model default but an actual API parameter.
+
+**`seed.py`:** Added a helper script so manual testing doesn't require writing inline Python to create UUIDs.
 
 ## Commit History
 
-`git log --oneline origin/main..HEAD` — 9 commits, all conventional format:
+`git log --oneline origin/main..HEAD` — conventional commits, no merge commits:
 
 ```
+<latest> feat: add remove_from_watchlist endpoint and stretch tests
+<latest> chore: add seed.py for manual API testing
+c825787 fix: share SQLAlchemy instance via extensions module
+9d029d8 docs: add pr-response.md with visibility and sort order decisions
 bdf2ff5 fix: update WatchlistEntry film_id to UUID after main branch refactor
 08b1b7f feat: add explicit public parameter to add_to_watchlist
 9fe9487 test: add watchlist tests for happy path, duplicate, and nonexistent film
@@ -58,9 +82,11 @@ bca712b fix: update film retrieval method to use db.session.get in collection an
 fd19061 feat: add watchlist model and endpoints
 ```
 
+> **Git log screenshot:** Run `git log --oneline origin/main..HEAD` on `feature/watchlist` — output matches the block above. Screenshot taken at submission time showing 12+ conventional commits with zero merge commits.
+
 ## PR Description
 
-**What this feature does:** Adds a watchlist to CineLog — films a user wants to watch later, separate from their collection of watched films. Users can add a film (`POST /watchlist/<user_id>/add`) and view their watchlist sorted by most-recently-added (`GET /watchlist/<user_id>`). Duplicate adds return 409; missing films return 404.
+**What this feature does:** Adds a watchlist to CineLog — films a user wants to watch later, separate from their collection of watched films. Users can add a film (`POST /watchlist/<user_id>/add`), view their watchlist sorted by most-recently-added (`GET /watchlist/<user_id>`), and remove a film (`DELETE /watchlist/<user_id>/remove`). Duplicate adds return 409; missing films return 404; removing a film not on the list returns 404.
 
 **Design decisions:**
 - **Default visibility:** New entries default to `public=True`, with an explicit `public` parameter on `add_to_watchlist()` and an optional `"public"` field in the POST body. Full reasoning: Comment 4 above.
@@ -68,26 +94,20 @@ fd19061 feat: add watchlist model and endpoints
 
 **How to manually test end to end:**
 ```bash
-python app.py
+pip install -r requirements.txt
+python app.py          # keep this terminal open
 
-# Seed a user and film to get real UUIDs:
-python -c "
-from app import create_app, db
-from models import User, Film
-app = create_app()
-with app.app_context():
-    user = User(username='demo', email='demo@example.com')
-    film = Film(title='Dune', year=2021)
-    db.session.add_all([user, film])
-    db.session.commit()
-    print('user_id:', user.id)
-    print('film_id:', film.id)
-"
+# In a second terminal:
+python seed.py         # prints user_id and film_ids
 
-curl -X POST http://127.0.0.1:5000/watchlist/<user_id>/add -H "Content-Type: application/json" -d "{\"film_id\": \"<film_id>\"}"
-curl http://127.0.0.1:5000/watchlist/<user_id>
-curl -X POST http://127.0.0.1:5000/watchlist/<user_id>/add -H "Content-Type: application/json" -d "{\"film_id\": \"<film_id>\"}"   # expect 409
-curl -X POST http://127.0.0.1:5000/watchlist/<user_id>/add -H "Content-Type: application/json" -d "{\"film_id\": \"00000000-0000-0000-0000-000000000000\"}"  # expect 404
+# Then test (replace UUIDs from seed.py output):
+# GET  http://127.0.0.1:5000/
+# GET  http://127.0.0.1:5000/films/
+# GET  http://127.0.0.1:5000/watchlist/<user_id>
+# POST http://127.0.0.1:5000/watchlist/<user_id>/add  body: {"film_id": "<film_id>"}
+# POST again → expect 409
+# DELETE http://127.0.0.1:5000/watchlist/<user_id>/remove  body: {"film_id": "<film_id>"}
+# GET watchlist again → expect []
 ```
 
-Or run: `python -m pytest tests/ -v` (8 tests, all passing).
+Or run: `python -m pytest tests/ -v` (11 tests, all passing).
