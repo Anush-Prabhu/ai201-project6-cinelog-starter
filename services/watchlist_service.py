@@ -4,7 +4,7 @@ services/watchlist_service.py — CineLog (feature/watchlist branch)
 Business logic for the watchlist feature.
 """
 
-from app import db
+from extensions import db
 from models import Film, WatchlistEntry
 
 

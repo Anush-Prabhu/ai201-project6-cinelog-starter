@@ -7,7 +7,7 @@ SQLAlchemy models. Film IDs use UUIDs throughout.
 
 import uuid
 from datetime import datetime, timezone
-from app import db
+from extensions import db
 
 
 def generate_uuid():

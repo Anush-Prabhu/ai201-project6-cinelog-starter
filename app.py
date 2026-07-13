@@ -1,10 +1,8 @@
 """app.py — CineLog Flask application factory"""
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 import os
-
-db = SQLAlchemy()
+from extensions import db
 
 
 def create_app(config=None):
@@ -27,6 +25,17 @@ def create_app(config=None):
     app.register_blueprint(films_bp, url_prefix="/films")
     app.register_blueprint(collection_bp, url_prefix="/collection")
     app.register_blueprint(watchlist_bp, url_prefix="/watchlist")
+
+    @app.route("/")
+    def index():
+        return {
+            "app": "CineLog",
+            "endpoints": {
+                "films": "/films/",
+                "collection": "/collection/<user_id>",
+                "watchlist": "/watchlist/<user_id>",
+            },
+        }
 
     with app.app_context():
         db.create_all()
