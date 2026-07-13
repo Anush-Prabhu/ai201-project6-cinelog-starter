@@ -9,9 +9,11 @@ from app import create_app, db
 from models import User, Film, WatchlistEntry
 from services.watchlist_service import (
     add_to_watchlist,
+    remove_from_watchlist,
     get_watchlist,
     FilmNotFoundError,
     AlreadyOnWatchlistError,
+    NotOnWatchlistError,
 )
 
 
@@ -114,3 +116,36 @@ def test_get_watchlist_returns_newest_first(app, sample_user):
 
         assert titles[0] == "Blade Runner"
         assert titles[1] == "Alien"
+
+
+def test_remove_from_watchlist_removes_entry(app, sample_user, sample_film):
+    """Removing a film should delete the WatchlistEntry from the database."""
+    with app.app_context():
+        add_to_watchlist(user_id=sample_user, film_id=sample_film)
+
+        result = remove_from_watchlist(user_id=sample_user, film_id=sample_film)
+        assert result is True
+
+        in_db = WatchlistEntry.query.filter_by(
+            user_id=sample_user, film_id=sample_film
+        ).first()
+        assert in_db is None
+
+
+def test_remove_from_watchlist_not_on_list_raises(app, sample_user, sample_film):
+    """Removing a film that isn't on the watchlist should raise NotOnWatchlistError."""
+    with app.app_context():
+        with pytest.raises(NotOnWatchlistError):
+            remove_from_watchlist(user_id=sample_user, film_id=sample_film)
+
+
+def test_add_to_watchlist_respects_public_false(app, sample_user, sample_film):
+    """Callers can opt out of the public default by passing public=False."""
+    with app.app_context():
+        entry = add_to_watchlist(
+            user_id=sample_user, film_id=sample_film, public=False
+        )
+        assert entry.public is False
+
+        watchlist = get_watchlist(sample_user)
+        assert watchlist[0]["public"] is False

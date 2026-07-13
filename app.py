@@ -34,6 +34,8 @@ def create_app(config=None):
                 "films": "/films/",
                 "collection": "/collection/<user_id>",
                 "watchlist": "/watchlist/<user_id>",
+                "watchlist_add": "/watchlist/<user_id>/add",
+                "watchlist_remove": "/watchlist/<user_id>/remove",
             },
         }
 
