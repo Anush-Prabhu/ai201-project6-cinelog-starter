@@ -67,8 +67,9 @@ I did **not** ask AI to write the deduplication logic or the design decisions wh
 `git log --oneline origin/main..HEAD` — conventional commits, no merge commits:
 
 ```
-<latest> feat: add remove_from_watchlist endpoint and stretch tests
-<latest> chore: add seed.py for manual API testing
+1a970d1 docs: complete pr-response.md with AI usage and stretch features
+dafca6b chore: add seed.py for manual API testing
+bca39f6 feat: add remove_from_watchlist endpoint and stretch tests
 c825787 fix: share SQLAlchemy instance via extensions module
 9d029d8 docs: add pr-response.md with visibility and sort order decisions
 bdf2ff5 fix: update WatchlistEntry film_id to UUID after main branch refactor
@@ -82,7 +83,7 @@ bca712b fix: update film retrieval method to use db.session.get in collection an
 fd19061 feat: add watchlist model and endpoints
 ```
 
-> **Git log screenshot:** Run `git log --oneline origin/main..HEAD` on `feature/watchlist` — output matches the block above. Screenshot taken at submission time showing 12+ conventional commits with zero merge commits.
+> **Git log screenshot:** Run `git log --oneline origin/main..HEAD` on `feature/watchlist` — output matches the block above. 14 conventional commits, zero merge commits.
 
 ## PR Description
 
